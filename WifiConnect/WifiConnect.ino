@@ -18,7 +18,7 @@
 // Set these to your desired credentials.
 const char *ssid = "esp32wifi";
 const char *password = "supersecret";
-const char *mdnsname = "esp32";
+const char *mdnsname = "esp32wifi";
 
 String ipaddress = "";
 String savedSSID = "";
@@ -127,7 +127,7 @@ void loop()
                             case 'C':
                                 if( connectionRequest(path) ) {
                                   // Redirect for convinience
-                                  writeRedirectHeader(client, "http://esp32.local");
+                                  writeRedirectHeader(client, "http://" + String(mdnsname) + ".local");
                                 }
                                 break;
                             default:
@@ -156,6 +156,7 @@ bool connectionRequest(String params)
     int i = params.indexOf('=', 0);
     int i2 = params.indexOf('&', 0);
     String ssid = params.substring(i + 1, i2);
+    ssid.replace('+', ' '); // remove html encoding
 
     i = params.indexOf('=', i2);
     String pass = params.substring(i + 1);
@@ -181,6 +182,7 @@ void writeMainResponse(WiFiClient client)
     htmlParsed.replace("%WIFI%", ipaddress);
     client.println(htmlParsed);
     client.println();
+    Serial.println("Wrote main response to client");
 }
 
 void writeAPResponse(WiFiClient client)
@@ -190,6 +192,7 @@ void writeAPResponse(WiFiClient client)
     htmlParsed.replace("%SSIDLIST%", networks);
     client.println(htmlParsed);
     client.println();
+    Serial.println("Wrote AP response to client");
 }
 
 void writeOkHeader(WiFiClient client)
@@ -212,9 +215,9 @@ void writeRedirectHeader(WiFiClient client, String redirectUrl)
 
 void setupAP()
 {
-    IPAddress local_IP(10, 0, 0, 1);
-    IPAddress gateway(10, 10, 0, 9);
-    IPAddress subnet(255, 255, 255, 0);
+    IPAddress local_IP(10, 0, 1, 1);
+    IPAddress gateway(10, 10, 1, 9);
+    IPAddress subnet(255, 255, 0, 0);
 
     Serial.println("Configuring access point...");
     WiFi.softAPConfig(local_IP, gateway, subnet);
@@ -235,8 +238,7 @@ bool connectWifi(String ssid, String pass)
 
     WiFi.disconnect();
 
-    Serial.print("Trying to connect to " + ssid + " with passwd:" + pass);
-
+    Serial.println("Trying to connect to " + ssid + " with passwd:" + pass);
     // WiFi.begin needs char*
     ssid.toCharArray(ssidA, 99);
     pass.toCharArray(passA, 99);
@@ -249,9 +251,10 @@ bool connectWifi(String ssid, String pass)
     }
     if (WiFi.status() != WL_CONNECTED)
     {
+        Serial.println("Connection failed");
         return false;
     }
-    ipaddress = String( WiFi.localIP() );
+    ipaddress = WiFi.localIP().toString();
     Serial.println("WiFi connected, IP address: " + ipaddress);
 
     if (!MDNS.begin(mdnsname))
