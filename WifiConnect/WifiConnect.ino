@@ -28,6 +28,7 @@ bool connected = false;
 
 WiFiServer server(80);
 
+// See README.md for an easy way to create these strings
 // main html page as one line
 const String mainHtmlOutput = "<!DOCTYPE html><html><head>		<title>ESP32</title>		<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\">		<style>.button.large {text-align:center;padding:2em ; margin: 1em;font-size:2em;color:black}</style></head><body>		<h1 align=\"center\">ESP32 action</h1>		<br/><br/>		<div class=\"row cols-sm-10\">				<a class=\"button large\" onClick='run(\"A\")' href=\"#\">Do one thing</a>				<a class=\"button large\" onClick='run(\"B\")' href=\"#\">Do another thing</a>		</div>		<div><small>Connected to WiFi: %WIFI%</small></div>		<script>				async function run(param) {						let result = await fetch('/' + param);						/* Use result for something - or not */				}		</script>		</body></html>";
 // access point, select wifi as one line
