@@ -111,7 +111,6 @@ void loop()
           {
             if (currentLine.startsWith("GET"))
             {
-              Serial.println(currentLine);
               // Trim to make cleaner switch
               // GET /xxxx HTTP/1.1
               String path = currentLine.substring(5, currentLine.length() - 9);
