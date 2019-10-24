@@ -9,6 +9,7 @@
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 #include <EEPROM.h>
+#include <DNSServer.h>
 
 #define EEPROM_SIZE 200
 #define EEPROM_SSID 0
@@ -215,14 +216,19 @@ void writeRedirectHeader(WiFiClient client, String redirectUrl)
 
 void setupAP()
 {
+    const byte DNS_PORT = 53;
+    DNSServer dnsServer;
+
     IPAddress local_IP(10, 0, 1, 1);
-    IPAddress gateway(10, 10, 1, 9);
     IPAddress subnet(255, 255, 0, 0);
 
     Serial.println("Configuring access point...");
-    WiFi.softAPConfig(local_IP, gateway, subnet);
+    Wifi.mode(WIFI_AP);
+    WiFi.softAPConfig(local_IP, local_IP, subnet);
     //    WiFi.softAP(ssid, password); // Using pwd
     WiFi.softAP(ssid); // Not using pwd
+
+    dnsServer.start(DNS_PORT, "*", local_IP);
 
     IPAddress myIP = WiFi.softAPIP();
     ipaddress = myIP.toString();
@@ -242,6 +248,8 @@ bool connectWifi(String ssid, String pass)
     // WiFi.begin needs char*
     ssid.toCharArray(ssidA, 99);
     pass.toCharArray(passA, 99);
+
+    WiFi.mode(WIFI_STA);
     WiFi.begin(ssidA, passA);
 
     while (i-- > 0 && WiFi.status() != WL_CONNECTED)
