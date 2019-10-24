@@ -61,8 +61,8 @@ void setup()
     }
     else
     {
-        //Serial.println("Trying to connect to saved WiFi");
-        //connected = connectWifi(savedSSID, savedPASS);
+        Serial.println("Trying to connect to saved WiFi");
+        connected = connectWifi(savedSSID, savedPASS);
     }
 
     if (!connected)
