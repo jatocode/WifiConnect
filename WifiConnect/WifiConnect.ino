@@ -28,6 +28,7 @@ String networks = "";
 bool connected = false;
 
 WiFiServer server(80);
+DNSServer dnsServer;
 
 // See README.md for an easy way to create these strings
 // main html page as one line
@@ -60,13 +61,15 @@ void setup()
     }
     else
     {
-        Serial.println("Trying to connect to saved WiFi");
-        connected = connectWifi(savedSSID, savedPASS);
+        //Serial.println("Trying to connect to saved WiFi");
+        //connected = connectWifi(savedSSID, savedPASS);
     }
 
     if (!connected)
     {
         // Start Access Point
+        Serial.println("Setting up access point");
+
         WiFi.mode(WIFI_STA);
         WiFi.disconnect();
         networks = scanNetworks();
@@ -81,6 +84,11 @@ void setup()
 
 void loop()
 {
+    if(!connected) 
+    {
+        // Captive portal. Give our IP to everything
+        dnsServer.processNextRequest();
+    }
     WiFiClient client = server.available();
 
     if (client)
@@ -217,13 +225,12 @@ void writeRedirectHeader(WiFiClient client, String redirectUrl)
 void setupAP()
 {
     const byte DNS_PORT = 53;
-    DNSServer dnsServer;
 
     IPAddress local_IP(10, 0, 1, 1);
     IPAddress subnet(255, 255, 0, 0);
 
     Serial.println("Configuring access point...");
-    Wifi.mode(WIFI_AP);
+    WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(local_IP, local_IP, subnet);
     //    WiFi.softAP(ssid, password); // Using pwd
     WiFi.softAP(ssid); // Not using pwd
