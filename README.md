@@ -29,4 +29,9 @@ You need to join all lines in those to one (ctrl-A and then ctrl-J in VSCode), a
 
 Copy/paste the oneliner into one of the variables in the main program.
 
+## OTA 
+To upload from Visual Code, find out the IP of your running ESP32 and change port in arduino.json to the ip-address instead of /dev/...
 
+## Serial port tip
+
+I'm using screen /dev/usb...port 115200 in a terminal to have an always-on terminal
