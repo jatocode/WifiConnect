@@ -10,11 +10,13 @@
 #include <ESPmDNS.h>
 #include <EEPROM.h>
 #include <DNSServer.h>
-
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #define EEPROM_SIZE 200
 #define EEPROM_SSID 0
 #define EEPROM_PASS 100
 #define MAX_EEPROM_LEN 50 // Max length to read ssid/passwd
+#define INPUT_2 21
 
 // Set these to your desired credentials.
 const char *ssid = "esp32wifi";
@@ -32,13 +34,16 @@ DNSServer dnsServer;
 
 // See README.md for an easy way to create these strings
 // main html page as one line
-const String mainHtmlOutput = "<!DOCTYPE html><html><head>		<title>ESP32</title>		<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\">		<style>.button.large {text-align:center;padding:2em ; margin: 1em;font-size:2em;color:black}</style></head><body>		<h1 align=\"center\">ESP32 action</h1>		<br/><br/>		<div class=\"row cols-sm-10\">				<a class=\"button large\" onClick='run(\"A\")' href=\"#\">Do one thing</a>				<a class=\"button large\" onClick='run(\"B\")' href=\"#\">Do another thing</a>		</div>		<div><small>Connected to WiFi: %WIFI%</small></div>		<script>				async function run(param) {						let result = await fetch('/' + param);						/* Use result for something - or not */				}		</script>		</body></html>";
+const String mainHtmlOutput = "<!DOCTYPE html><html><head>		<title>ESP32</title>		<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\">		<style>.button.large {text-align:center;padding:2em ; margin: 1em;font-size:2em;color:black}</style></head><body>		<h1 align=\"center\">ESP32 action</h1>		<br/><br/>		<div class=\"row cols-sm-10\">				<a class=\"button large\" onClick='run(\"A\")' href=\"#\">Blink LED</a>				<a class=\"button large\" onClick='run(\"B\")' href=\"#\">Do another thing</a>		</div>		<div><small>Connected to WiFi: %WIFI%</small></div>		<script>				async function run(param) {						let result = await fetch('/' + param);						/* Use result for something - or not */				}		</script>		</body></html>";
 // access point, select wifi as one line
 const String apHtmlOutput = "<!DOCTYPE html><html><head>	<title>ESP32 connect to Wifi</title>	<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\"></head><body>	<h1 align=\"center\">ESP32 connect to Wifi</h1>	<br /><br />	<form action=\"/C\" method=\"GET\">		<fieldset>			<legend>Connect to wifi</legend>			<div class=\"col-sm-12 col-md-6\">				<select name=\"ssid\">					%SSIDLIST%				</select>			</div>			<div class=\"row\">				<div class=\"col-sm-8 col-md-8\">					<label for=\"password\">Password</label>					<input name=\"p\" type=\"password\" id=\"password\" placeholder=\"Password\" />				</div>			</div>			<button class=\"submit\">Connect</button>			</div>		</fieldset>	</form></body></html>";
+
+int last_input2 = 0;
 
 void setup()
 {
     pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(INPUT_2, INPUT_PULLUP);
 
     delay(1000);
 
@@ -80,15 +85,51 @@ void setup()
 
     server.begin();
     Serial.println("Server started");
+
+    ArduinoOTA
+        .onStart([]() {
+            String type;
+            if (ArduinoOTA.getCommand() == U_FLASH)
+                type = "sketch";
+            else // U_SPIFFS
+                type = "filesystem";
+
+            // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+            Serial.println("Start updating " + type);
+        })
+        .onEnd([]() {
+            Serial.println("\nEnd");
+        })
+        .onProgress([](unsigned int progress, unsigned int total) {
+            Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        })
+        .onError([](ota_error_t error) {
+            Serial.printf("Error[%u]: ", error);
+            if (error == OTA_AUTH_ERROR)
+                Serial.println("Auth Failed");
+            else if (error == OTA_BEGIN_ERROR)
+                Serial.println("Begin Failed");
+            else if (error == OTA_CONNECT_ERROR)
+                Serial.println("Connect Failed");
+            else if (error == OTA_RECEIVE_ERROR)
+                Serial.println("Receive Failed");
+            else if (error == OTA_END_ERROR)
+                Serial.println("End Failed");
+        });
+
+    ArduinoOTA.begin();
 }
 
 void loop()
 {
-    if(!connected) 
+    if (!connected)
     {
         // Captive portal. Give our IP to everything
         dnsServer.processNextRequest();
     }
+
+    ArduinoOTA.handle();
+
     WiFiClient client = server.available();
 
     if (client)
@@ -154,6 +195,20 @@ void loop()
             }
         }
         client.stop();
+    }
+    readInputs();
+}
+
+void readInputs()
+{
+    int val2 = digitalRead(INPUT_2);
+
+    if (val2 != last_input2)
+    {
+        last_input2 = val2;
+        Serial.println(val2);
+        digitalWrite(LED_BUILTIN, val2); // Low lights the led
+        delay(100);
     }
 }
 
