@@ -19,9 +19,9 @@
 #define INPUT_2 21
 
 // Set these to your desired credentials.
-const char *ssid = "esp32wifi";
+const char *ssid = "loin32wifi";
 const char *password = "supersecret";
-const char *mdnsname = "esp32wifi";
+const char *mdnsname = "loin32";
 
 String ipaddress = "";
 String savedSSID = "";
@@ -34,11 +34,14 @@ DNSServer dnsServer;
 
 // See README.md for an easy way to create these strings
 // main html page as one line
-const String mainHtmlOutput = "<!DOCTYPE html><html><head>		<title>ESP32</title>		<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\">		<style>.button.large {text-align:center;padding:2em ; margin: 1em;font-size:2em;color:black}</style></head><body>		<h1 align=\"center\">ESP32 action</h1>		<br/><br/>		<div class=\"row cols-sm-10\">				<a class=\"button large\" onClick='run(\"A\")' href=\"#\">Blink LED</a>				<a class=\"button large\" onClick='run(\"B\")' href=\"#\">Do another thing</a>		</div>		<div><small>Connected to WiFi: %WIFI%</small></div>		<script>				async function run(param) {						let result = await fetch('/' + param);						/* Use result for something - or not */				}		</script>		</body></html>";
+const String mainHtmlOutput = "<!DOCTYPE html><html><head>		<title>ESP32</title>		<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\">		<style>.button.large {text-align:center;padding:2em ; margin: 1em;font-size:2em;color:black}</style></head><body>		<h1 align=\"center\">ESP32 action</h1>		<br/><br/>		<div class=\"row cols-sm-10\">				<a class=\"button large\" onClick='run(\"A\")' href=\"#\">Blink LED</a>				<a class=\"button large\" onClick='run(\"B\")' href=\"#\">V&aring;gform: %WAVE%</a>		</div>		<div><small>Connected to WiFi: %WIFI%</small></div>		<script>				async function run(param) {						let result = await fetch('/' + param);						/* Use result for something - or not */				}		</script>		</body></html>";
 // access point, select wifi as one line
 const String apHtmlOutput = "<!DOCTYPE html><html><head>	<title>ESP32 connect to Wifi</title>	<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css\"></head><body>	<h1 align=\"center\">ESP32 connect to Wifi</h1>	<br /><br />	<form action=\"/C\" method=\"GET\">		<fieldset>			<legend>Connect to wifi</legend>			<div class=\"col-sm-12 col-md-6\">				<select name=\"ssid\">					%SSIDLIST%				</select>			</div>			<div class=\"row\">				<div class=\"col-sm-8 col-md-8\">					<label for=\"password\">Password</label>					<input name=\"p\" type=\"password\" id=\"password\" placeholder=\"Password\" />				</div>			</div>			<button class=\"submit\">Connect</button>			</div>		</fieldset>	</form></body></html>";
 
 int last_input2 = 0;
+
+int wavetype = 0;
+int deg = 0;
 
 void setup()
 {
@@ -82,6 +85,9 @@ void setup()
     }
 
     digitalWrite(LED_BUILTIN, LOW); // Low lights the led
+
+    Serial.print("Connected to wifi: ");
+    Serial.println(savedSSID);
 
     server.begin();
     Serial.println("Server started");
@@ -130,6 +136,8 @@ void loop()
 
     ArduinoOTA.handle();
 
+    dac();
+
     WiFiClient client = server.available();
 
     if (client)
@@ -172,7 +180,8 @@ void loop()
                                 blinkenLight();
                                 break;
                             case 'B':
-                                Serial.println("I'm doing some other thing");
+                                wavetype = (wavetype + 1) % 3;
+                                writeMainResponse(client);
                                 break;
                             case 'C':
                                 if (connectionRequest(path))
@@ -197,6 +206,29 @@ void loop()
         client.stop();
     }
     readInputs();
+}
+
+void dac() {
+  switch(wavetype) {
+    case 0: sinus(); break;
+    case 1: triangle(); break;
+    case 2: square(); break;
+    default: break;
+  }
+  deg = (deg + 8) % 360;
+  delay(50);
+}
+
+void sinus() {
+  dacWrite(25, int(128 + 80 * (sin(deg*PI/180)))); // GPIO Pin mode (OUTPUT) is set by the dacWrite function
+}
+
+void triangle() {
+  dacWrite(25, int(128 + 80 * (sin(deg*PI/180)+1/pow(3,2)*sin(3*deg*PI/180)+1/pow(5,2)*sin(5*deg*PI/180)+1/pow(7,2)*sin(7*deg*PI/180)+1/pow(9,2)*sin(9*deg*PI/180)))); // Triangle
+}
+
+void square() {
+    dacWrite(25, int(128 + 80 * (sin(deg*PI/180)+sin(3*deg*PI/180)/3+sin(5*deg*PI/180)/5+sin(7*deg*PI/180)/7+sin(9*deg*PI/180)/9+sin(11*deg*PI/180)/11))); // Square
 }
 
 void readInputs()
@@ -244,6 +276,9 @@ void writeMainResponse(WiFiClient client)
     writeOkHeader(client);
     String htmlParsed = mainHtmlOutput;
     htmlParsed.replace("%WIFI%", ipaddress);
+    String wave = waveFormName(wavetype);
+    Serial.println(wave);
+    htmlParsed.replace("%WAVE%", wave);
     client.println(htmlParsed);
     client.println();
     Serial.println("Wrote main response to client");
@@ -264,6 +299,15 @@ void writeOkHeader(WiFiClient client)
     client.println("HTTP/1.1 200 OK");
     client.println("Content-type:text/html");
     client.println();
+}
+
+String waveFormName(int wave) {
+  switch(wave) {
+    case 0: return "SINUS";
+    case 1: return "TRIANGEL";
+    case 2: return "FYRKANT";
+    default: return "WHAT";
+  }
 }
 
 void writeRedirectHeader(WiFiClient client, String redirectUrl)
